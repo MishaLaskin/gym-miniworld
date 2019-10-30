@@ -4,6 +4,7 @@ from gym import spaces
 from ..miniworld import MiniWorldEnv, Room
 from ..entity import Box
 
+
 class FourRooms(MiniWorldEnv):
     """
     Classic four rooms environment.
@@ -23,22 +24,32 @@ class FourRooms(MiniWorldEnv):
         # Top-left room
         room0 = self.add_rect_room(
             min_x=-7, max_x=-1,
-            min_z=1 , max_z=7
+            min_z=1, max_z=7,
+            wall_tex='acustom_wall',
+            floor_tex='concrete_tiles',
         )
         # Top-right room
         room1 = self.add_rect_room(
             min_x=1, max_x=7,
-            min_z=1, max_z=7
+            min_z=1, max_z=7,
+            wall_tex='bcustom_wall',
+            floor_tex='concrete_tiles',
+
         )
         # Bottom-right room
         room2 = self.add_rect_room(
-            min_x=1 , max_x=7,
-            min_z=-7, max_z=-1
+            min_x=1, max_x=7,
+            min_z=-7, max_z=-1,
+            wall_tex='ccustom_wall',
+            floor_tex='concrete_tiles',
+
         )
         # Bottom-left room
         room3 = self.add_rect_room(
             min_x=-7, max_x=-1,
-            min_z=-7, max_z=-1
+            min_z=-7, max_z=-1,
+            wall_tex='dcustom_wall',
+            floor_tex='concrete_tiles',
         )
 
         # Add openings to connect the rooms together

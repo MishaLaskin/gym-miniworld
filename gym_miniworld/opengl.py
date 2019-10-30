@@ -19,6 +19,7 @@ FB_ERROR_ENUMS = {
     GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS: 'GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS',
 }
 
+
 class Texture:
     """
     Manage the loading and caching of textures, as well as texture randomization
@@ -42,7 +43,8 @@ class Texture:
         # Get an inventory of the existing texture files
         if len(paths) == 0:
             for i in range(1, 10):
-                path = get_file_path('textures', '%s_%d' % (tex_name, i), 'png')
+                path = get_file_path('textures', '%s_%d' %
+                                     (tex_name, i), 'png')
 
                 if not os.path.exists(path):
                     break
@@ -94,7 +96,8 @@ class Texture:
 
         # Trilinear texture filtering
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                        GL_LINEAR_MIPMAP_LINEAR)
 
         # Unbind the texture
         glBindTexture(GL_TEXTURE_2D, 0)
@@ -110,6 +113,7 @@ class Texture:
 
     def bind(self):
         glBindTexture(self.tex.target, self.tex.id)
+
 
 class FrameBuffer:
     """
@@ -149,7 +153,7 @@ class FrameBuffer:
 
             # Create a multisampled texture to render into
             fbTex = GLuint(0)
-            glGenTextures( 1, byref(fbTex))
+            glGenTextures(1, byref(fbTex))
             glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, fbTex)
             glTexImage2DMultisample(
                 GL_TEXTURE_2D_MULTISAMPLE,
@@ -171,8 +175,10 @@ class FrameBuffer:
             depth_rb = GLuint(0)
             glGenRenderbuffers(1, byref(depth_rb))
             glBindRenderbuffer(GL_RENDERBUFFER, depth_rb)
-            glRenderbufferStorageMultisample(GL_RENDERBUFFER, num_samples, GL_DEPTH_COMPONENT16, width, height)
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rb)
+            glRenderbufferStorageMultisample(
+                GL_RENDERBUFFER, num_samples, GL_DEPTH_COMPONENT16, width, height)
+            glFramebufferRenderbuffer(
+                GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rb)
 
             # Check that the frame buffer creation succeeded
             res = glCheckFramebufferStatus(GL_FRAMEBUFFER)
@@ -183,7 +189,7 @@ class FrameBuffer:
 
             # Create a plain texture texture to render into
             fbTex = GLuint(0)
-            glGenTextures( 1, byref(fbTex))
+            glGenTextures(1, byref(fbTex))
             glBindTexture(GL_TEXTURE_2D, fbTex)
             glTexImage2D(
                 GL_TEXTURE_2D,
@@ -208,8 +214,10 @@ class FrameBuffer:
             depth_rb = GLuint(0)
             glGenRenderbuffers(1, byref(depth_rb))
             glBindRenderbuffer(GL_RENDERBUFFER, depth_rb)
-            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height)
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rb)
+            glRenderbufferStorage(
+                GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height)
+            glFramebufferRenderbuffer(
+                GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rb)
 
         # Sanity check
         res = glCheckFramebufferStatus(GL_FRAMEBUFFER)
@@ -247,8 +255,10 @@ class FrameBuffer:
         depth_rb = GLuint(0)
         glGenRenderbuffers(1, byref(depth_rb))
         glBindRenderbuffer(GL_RENDERBUFFER, depth_rb)
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height)
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rb)
+        glRenderbufferStorage(
+            GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height)
+        glFramebufferRenderbuffer(
+            GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth_rb)
 
         # Sanity check
         res = glCheckFramebufferStatus(GL_FRAMEBUFFER)
@@ -333,7 +343,8 @@ class FrameBuffer:
         The values returned are real-world z-distance from the observer
         """
 
-        depth_map = np.zeros(shape=(self.height, self.width, 1), dtype=np.uint16)
+        depth_map = np.zeros(
+            shape=(self.height, self.width, 1), dtype=np.uint16)
 
         glBindFramebuffer(GL_FRAMEBUFFER, self.final_fbo)
         glPixelStorei(GL_PACK_ALIGNMENT, 1)
@@ -357,12 +368,13 @@ class FrameBuffer:
         depth_map = depth_map.astype(np.float32) / 65535
 
         # Convert to real-world z-distances
-        clip_z = (depth_map - 0.5) * 2.0;
+        clip_z = (depth_map - 0.5) * 2.0
         world_z = -2*z_far*z_near/(clip_z*(z_far-z_near)-(z_far+z_near))
 
         depth_map = np.ascontiguousarray(world_z)
 
         return depth_map
+
 
 def drawAxes(len=0.1):
     """
@@ -384,6 +396,7 @@ def drawAxes(len=0.1):
     glVertex3f(0, 0, len)
 
     glEnd()
+
 
 def drawBox(
     x_min,
