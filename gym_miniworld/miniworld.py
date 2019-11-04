@@ -1511,34 +1511,27 @@ class ContinuousMiniworldEnv(MiniWorldEnv):
         return obs, reward, done, {}
 
 
-class GoalConditionedMiniworldWrapper(gym.Wrapper):
+class GoalConditionedCoordinateMiniworldWrapper(gym.Wrapper):
     """Wrapper that appends goal to state produced by environment."""
 
-    def __init__(self, env, img_obs=False):
+    def __init__(self, env):
         """Initialize the environment.
 
         Args:
           env: an environment.
-          obs_type: coordinates or image
         """
-        super(GoalConditionedMiniworldWrapper, self).__init__(env)
-        self.img_obs = img_obs
-        if self.img_obs:
-            self.observation_space = gym.spaces.Dict({
-                'observation': env.observation_space,
-                'goal': env.observation_space,
-            })
-        else:
-            obs_space = spaces.Box(
-                low=-10.,
-                high=10.,
-                shape=(3,),
-                dtype=np.float32
-            )
-            self.observation_space = gym.spaces.Dict({
-                'observation': obs_space,
-                'goal': obs_space,
-            })
+        super(GoalConditionedCoordinateMiniworldWrapper, self).__init__(env)
+
+        obs_space = spaces.Box(
+            low=-10.,
+            high=10.,
+            shape=(3,),
+            dtype=np.float32
+        )
+        self.observation_space = gym.spaces.Dict({
+            'observation': obs_space,
+            'goal': obs_space,
+        })
 
     def reset(self):
         img = self.env.reset()
@@ -1557,3 +1550,60 @@ class GoalConditionedMiniworldWrapper(gym.Wrapper):
         info['image'] = img
         return {'observation': obs,
                 'goal': self._goal}, rew, done, info
+
+
+class GoalConditionedImageMiniworldWrapper(gym.Wrapper):
+    """Wrapper that appends goal to state produced by environment."""
+
+    def __init__(self, env):
+        """Initialize the environment.
+
+        Args:
+          env: an environment.
+          obs_type: coordinates or image
+        """
+        super(GoalConditionedImageMiniworldWrapper, self).__init__(env)
+
+        self.observation_space = gym.spaces.Dict({
+            'observation': env.observation_space,
+            'goal': env.observation_space,
+        })
+
+    def reset(self):
+        goal = self.env.reset()
+        goal_pos = self.env.agent.pos
+
+        obs = self.env.reset()
+        self.env.box.pos = goal_pos
+        # Note: only work if you use a box to specify the goal
+        # check out FourRooms env in miniworld
+        self._goal = goal
+
+        return {'observation': obs,
+                'goal': self._goal}
+
+    def step(self, action):
+        obs, _, done, info = self.env.step(action)
+        rew = -1.0
+        info['agent_pos'] = self.env.agent.pos
+        info['goal_pos'] = self.env.box.pos
+        return {'observation': obs,
+                'goal': self._goal}, rew, done, info
+
+    def set_image_goal(self):
+        """
+        currently not actually used, but useful 
+        utility if you want to set custom goals
+        """
+        original_agent_pos = self.env.agent.pos
+        original_angle = self.env.agent.dir
+        # move agent to goal
+        self.agent.pos = self.env.box.pos
+        # turn agent randomly
+        angle = np.random.randint(-180, 180)
+        angle *= (math.pi / 180)
+        self.agent.dir = angle
+        goal_img = self.render_obs()
+        # reset agent back
+        self.env.agent.pos = original_agent_pos
+        self.agent.dir = original_angle
