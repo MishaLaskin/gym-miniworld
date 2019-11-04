@@ -6,16 +6,17 @@ from .objmesh import ObjMesh
 
 # Map of color names to RGB values
 COLORS = {
-    'red'   : np.array([1.0, 0.0, 0.0]),
-    'green' : np.array([0.0, 1.0, 0.0]),
-    'blue'  : np.array([0.0, 0.0, 1.0]),
+    'red': np.array([1.0, 0.0, 0.0]),
+    'green': np.array([0.0, 1.0, 0.0]),
+    'blue': np.array([0.0, 0.0, 1.0]),
     'purple': np.array([0.44, 0.15, 0.76]),
     'yellow': np.array([1.00, 1.00, 0.00]),
-    'grey'  : np.array([0.39, 0.39, 0.39])
+    'grey': np.array([0.39, 0.39, 0.39])
 }
 
 # List of color names, sorted alphabetically
 COLOR_NAMES = sorted(list(COLORS.keys()))
+
 
 class Entity:
     def __init__(self):
@@ -97,6 +98,7 @@ class Entity:
         """
         return False
 
+
 class MeshEnt(Entity):
     """
     Entity whose appearance is defined by a mesh file
@@ -144,6 +146,7 @@ class MeshEnt(Entity):
     @property
     def is_static(self):
         return self.static
+
 
 class ImageFrame(Entity):
     """
@@ -211,35 +214,36 @@ class ImageFrame(Entity):
 
         # Left
         glNormal3f(0, 0, -1)
-        glVertex3f(0  , +hy, -hz)
+        glVertex3f(0, +hy, -hz)
         glVertex3f(+sx, +hy, -hz)
         glVertex3f(+sx, -hy, -hz)
-        glVertex3f(0  , -hy, -hz)
+        glVertex3f(0, -hy, -hz)
 
         # Right
         glNormal3f(0, 0, 1)
         glVertex3f(+sx, +hy, +hz)
-        glVertex3f(0  , +hy, +hz)
-        glVertex3f(0  , -hy, +hz)
+        glVertex3f(0, +hy, +hz)
+        glVertex3f(0, -hy, +hz)
         glVertex3f(+sx, -hy, +hz)
 
         # Top
         glNormal3f(0, 1, 0)
         glVertex3f(+sx, +hy, +hz)
         glVertex3f(+sx, +hy, -hz)
-        glVertex3f(0  , +hy, -hz)
-        glVertex3f(0  , +hy, +hz)
+        glVertex3f(0, +hy, -hz)
+        glVertex3f(0, +hy, +hz)
 
         # Bottom
         glNormal3f(0, -1, 0)
         glVertex3f(+sx, -hy, -hz)
         glVertex3f(+sx, -hy, +hz)
-        glVertex3f(0  , -hy, +hz)
-        glVertex3f(0  , -hy, -hz)
+        glVertex3f(0, -hy, +hz)
+        glVertex3f(0, -hy, -hz)
 
         glEnd()
 
         glPopMatrix()
+
 
 class TextFrame(Entity):
     """
@@ -329,42 +333,43 @@ class TextFrame(Entity):
 
         # Left
         glNormal3f(0, 0, -1)
-        glVertex3f(0  , +hy, -hz)
+        glVertex3f(0, +hy, -hz)
         glVertex3f(+sx, +hy, -hz)
         glVertex3f(+sx, -hy, -hz)
-        glVertex3f(0  , -hy, -hz)
+        glVertex3f(0, -hy, -hz)
 
         # Right
         glNormal3f(0, 0, 1)
         glVertex3f(+sx, +hy, +hz)
-        glVertex3f(0  , +hy, +hz)
-        glVertex3f(0  , -hy, +hz)
+        glVertex3f(0, +hy, +hz)
+        glVertex3f(0, -hy, +hz)
         glVertex3f(+sx, -hy, +hz)
 
         # Top
         glNormal3f(0, 1, 0)
         glVertex3f(+sx, +hy, +hz)
         glVertex3f(+sx, +hy, -hz)
-        glVertex3f(0  , +hy, -hz)
-        glVertex3f(0  , +hy, +hz)
+        glVertex3f(0, +hy, -hz)
+        glVertex3f(0, +hy, +hz)
 
         # Bottom
         glNormal3f(0, -1, 0)
         glVertex3f(+sx, -hy, -hz)
         glVertex3f(+sx, -hy, +hz)
-        glVertex3f(0  , -hy, +hz)
-        glVertex3f(0  , -hy, -hz)
+        glVertex3f(0, -hy, +hz)
+        glVertex3f(0, -hy, -hz)
 
         glEnd()
 
         glPopMatrix()
+
 
 class Box(Entity):
     """
     Colored box object
     """
 
-    def __init__(self, color, size=0.8):
+    def __init__(self, color, size=0.8, invisible=False):
         super().__init__()
 
         if type(size) is int or type(size) is float:
@@ -378,14 +383,19 @@ class Box(Entity):
         self.radius = math.sqrt(sx*sx + sz*sz)/2
         self.height = sy
 
+        self.invisible = invisible
+
     def randomize(self, params, rng):
-        self.color_vec = COLORS[self.color] + params.sample(rng, 'obj_color_bias')
+        self.color_vec = COLORS[self.color] + \
+            params.sample(rng, 'obj_color_bias')
         self.color_vec = np.clip(self.color_vec, 0, 1)
 
     def render(self):
         """
-        Draw the object
+        Draw the object unless self.invisible
         """
+        if self.invisible:
+            return
 
         sx, sy, sz = self.size
 
@@ -407,6 +417,7 @@ class Box(Entity):
 
         glPopMatrix()
 
+
 class Key(MeshEnt):
     """
     Key the agent can pick up, carry, and use to open doors
@@ -420,6 +431,7 @@ class Key(MeshEnt):
             static=False
         )
 
+
 class Ball(MeshEnt):
     """
     Ball (sphere) the agent can pick up and carry
@@ -432,6 +444,7 @@ class Ball(MeshEnt):
             height=size,
             static=False
         )
+
 
 class Agent(Entity):
     def __init__(self):

@@ -11,10 +11,11 @@ from .math import *
 from .params import *
 
 # Default wall height for room
-DEFAULT_WALL_HEIGHT=2.74
+DEFAULT_WALL_HEIGHT = 2.74
 
 # Texture size/density in texels/meter
 TEX_DENSITY = 512
+
 
 def gen_texcs_wall(
     tex,
@@ -45,6 +46,7 @@ def gen_texcs_wall(
         dtype=np.float32
     )
 
+
 def gen_texcs_floor(
     tex,
     poss
@@ -63,9 +65,10 @@ def gen_texcs_floor(
         dtype=float
     )
 
-    coords = np.stack([poss[:,0], poss[:,2]], axis=1) * texc_mul
+    coords = np.stack([poss[:, 0], poss[:, 2]], axis=1) * texc_mul
 
     return coords
+
 
 class Room:
     """
@@ -113,11 +116,14 @@ class Room:
         # Compute edge vectors (p1 - p0)
         # For the first point, p0 is the last
         # For the last point, p0 is p_n-1
-        next_pts = np.concatenate([self.outline[1:], np.expand_dims(self.outline[0], axis=0)], axis=0)
+        next_pts = np.concatenate(
+            [self.outline[1:], np.expand_dims(self.outline[0], axis=0)], axis=0)
         self.edge_dirs = next_pts - self.outline
-        self.edge_dirs = (self.edge_dirs.T / np.linalg.norm(self.edge_dirs, axis=1)).T
+        self.edge_dirs = (self.edge_dirs.T /
+                          np.linalg.norm(self.edge_dirs, axis=1)).T
         self.edge_norms = -np.cross(self.edge_dirs, Y_VEC)
-        self.edge_norms = (self.edge_norms.T / np.linalg.norm(self.edge_norms, axis=1)).T
+        self.edge_norms = (self.edge_norms.T /
+                           np.linalg.norm(self.edge_norms, axis=1)).T
 
         # Height of the room walls
         self.wall_height = wall_height
@@ -253,7 +259,8 @@ class Room:
 
         # Generate the ceiling vertices
         # Flip the ceiling vertex order because of backface culling
-        self.ceil_verts = np.flip(self.outline, axis=0) + self.wall_height * Y_VEC
+        self.ceil_verts = np.flip(
+            self.outline, axis=0) + self.wall_height * Y_VEC
         self.ceil_texcs = gen_texcs_floor(
             self.ceil_tex,
             self.ceil_verts
@@ -422,6 +429,7 @@ class Room:
             glVertex3f(*self.wall_verts[i, :])
         glEnd()
 
+
 class MiniWorldEnv(gym.Env):
     """
     Base class for MiniWorld environments. Implements the procedural
@@ -430,7 +438,7 @@ class MiniWorldEnv(gym.Env):
 
     metadata = {
         'render.modes': ['human', 'rgb_array'],
-        'video.frames_per_second' : 30
+        'video.frames_per_second': 30
     }
 
     # Enumeration of possible actions
@@ -456,8 +464,8 @@ class MiniWorldEnv(gym.Env):
     def __init__(
         self,
         max_episode_steps=1500,
-        obs_width=80,
-        obs_height=60,
+        obs_width=84,
+        obs_height=84,
         window_width=800,
         window_height=600,
         params=DEFAULT_PARAMS,
@@ -492,7 +500,8 @@ class MiniWorldEnv(gym.Env):
         self.window = None
 
         # Invisible window to render into (shadow OpenGL context)
-        self.shadow_window = pyglet.window.Window(width=1, height=1, visible=False)
+        self.shadow_window = pyglet.window.Window(
+            width=1, height=1, visible=False)
 
         # Enable depth testing and backface culling
         glEnable(GL_DEPTH_TEST)
@@ -514,8 +523,8 @@ class MiniWorldEnv(gym.Env):
             font_size=14,
             multiline=True,
             width=400,
-            x = window_width + 5,
-            y = window_height - (self.obs_disp_height + 19)
+            x=window_width + 5,
+            y=window_height - (self.obs_disp_height + 19)
         )
 
         # Initialize the state
@@ -632,6 +641,28 @@ class MiniWorldEnv(gym.Env):
 
         return True
 
+    def move_agent_absolute(self, next_pos):
+        """
+        Move the agent to some coordinate specified by next_pos (x,y,z)
+        Useful for setting goals
+        """
+
+        if self.intersect(self.agent, next_pos, self.agent.radius):
+            return False
+
+        carrying = self.agent.carrying
+        if carrying:
+            next_carrying_pos = self._get_carry_pos(next_pos, carrying)
+
+            if self.intersect(carrying, next_carrying_pos, carrying.radius):
+                return False
+
+            carrying.pos = next_carrying_pos
+
+        self.agent.pos = next_pos
+
+        return True
+
     def turn_agent(self, turn_angle):
         """
         Turn the agent left or right
@@ -667,6 +698,13 @@ class MiniWorldEnv(gym.Env):
         fwd_drift = self.params.sample(rand, 'forward_drift')
         turn_step = self.params.sample(rand, 'turn_step')
 
+        sense_check = False
+        if sense_check:
+            print('rand', rand)
+            print('fwd_step', fwd_step)
+            print('fwd_drift', fwd_drift)
+            print('turn_step', turn_step)
+            print('action', action)
         if action == self.actions.move_forward:
             self.move_agent(fwd_step, fwd_drift)
 
@@ -727,7 +765,8 @@ class MiniWorldEnv(gym.Env):
         Create a rectangular room
         """
 
-        assert len(self.wall_segs) == 0, "cannot add rooms after static data is generated"
+        assert len(
+            self.wall_segs) == 0, "cannot add rooms after static data is generated"
 
         # 2D outline coordinates of the room,
         # listed in counter-clockwise order when viewed from the top
@@ -863,7 +902,8 @@ class MiniWorldEnv(gym.Env):
 
         # If an exact position if specified
         if pos is not None:
-            ent.dir = dir if dir != None else self.rand.float(-math.pi, math.pi)
+            ent.dir = dir if dir != None else self.rand.float(
+                -math.pi, math.pi)
             ent.pos = pos
             self.entities.append(ent)
             return ent
@@ -871,7 +911,8 @@ class MiniWorldEnv(gym.Env):
         # Keep retrying until we find a suitable position
         while True:
             # Pick a room, sample rooms proportionally to floor surface area
-            r = room if room else self.rand.choice(self.rooms, probs=self.room_probs)
+            r = room if room else self.rand.choice(
+                self.rooms, probs=self.room_probs)
 
             # Choose a random point within the square bounding box of the room
             lx = r.min_x if min_x == None else min_x
@@ -879,7 +920,7 @@ class MiniWorldEnv(gym.Env):
             lz = r.min_z if min_z == None else min_z
             hz = r.max_z if max_z == None else max_z
             pos = self.rand.float(
-                low =[lx + ent.radius, 0, lz + ent.radius],
+                low=[lx + ent.radius, 0, lz + ent.radius],
                 high=[hx - ent.radius, 0, hz - ent.radius]
             )
 
@@ -1015,8 +1056,8 @@ class MiniWorldEnv(gym.Env):
 
         # TODO: manage this automatically
         # glIsList
-        glDeleteLists(1, 1);
-        glNewList(1, GL_COMPILE);
+        glDeleteLists(1, 1)
+        glNewList(1, GL_COMPILE)
 
         # Light position
         glLightfv(GL_LIGHT0, GL_POSITION, (GLfloat*4)(*self.light_pos + [1]))
@@ -1070,7 +1111,7 @@ class MiniWorldEnv(gym.Env):
         for ent in self.entities:
             if not ent.is_static and ent is not self.agent:
                 ent.render()
-                #ent.draw_bound()
+                # ent.draw_bound()
 
         if render_agent:
             self.agent.render()
@@ -1297,7 +1338,7 @@ class MiniWorldEnv(gym.Env):
                 continue
 
             visible = (GLuint*1)(1)
-            glGetQueryObjectuiv(query_ids[ent_idx], GL_QUERY_RESULT, visible);
+            glGetQueryObjectuiv(query_ids[ent_idx], GL_QUERY_RESULT, visible)
 
             if visible[0] != 0:
                 vis_objs.add(ent)
@@ -1306,7 +1347,7 @@ class MiniWorldEnv(gym.Env):
         glDeleteQueries(1, query_ids)
 
         #img = frame_buffer.resolve()
-        #return img
+        # return img
 
         return vis_objs
 
@@ -1350,12 +1391,12 @@ class MiniWorldEnv(gym.Env):
         self.window.switch_to()
 
         # Bind the default frame buffer
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
         # Clear the color and depth buffers
         glClearColor(0, 0, 0, 1.0)
         glClearDepth(1.0)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         # Setup orghogonal projection
         glMatrixMode(GL_PROJECTION)
@@ -1416,3 +1457,103 @@ class MiniWorldEnv(gym.Env):
             self.window.dispatch_events()
 
         return None
+
+
+class ContinuousMiniworldEnv(MiniWorldEnv):
+
+    def __init__(
+            self,
+            max_episode_steps=1500,
+            obs_width=84,
+            obs_height=84,
+            window_width=800,
+            window_height=600,
+            params=DEFAULT_PARAMS,
+            domain_rand=False):
+        super().__init__(
+            max_episode_steps,
+            obs_width,
+            obs_height,
+            window_width,
+            window_height,
+            params,
+            domain_rand)
+
+    def step(self, action):
+        """
+        Perform one action and update the simulation
+        action is between -1 and 1, which corresponds to
+        an angle between -pi/2 and pi/2
+        """
+
+        self.step_count += 1
+
+        rand = self.rand if self.domain_rand else None
+        fwd_step = self.params.sample(rand, 'forward_step')
+        fwd_drift = self.params.sample(rand, 'forward_drift')
+
+        angle = int(90*action)
+        self.turn_agent(angle)
+        self.move_agent(fwd_step, fwd_drift)
+
+        # Generate the current camera image
+        obs = self.render_obs()
+
+        # If the maximum time step count is reached
+        if self.step_count >= self.max_episode_steps:
+            done = True
+            reward = 0
+            return obs, reward, done, {}
+
+        reward = 0
+        done = False
+
+        return obs, reward, done, {}
+
+
+class GoalConditionedMiniworldWrapper(gym.Wrapper):
+    """Wrapper that appends goal to state produced by environment."""
+
+    def __init__(self, env, img_obs=False):
+        """Initialize the environment.
+
+        Args:
+          env: an environment.
+          obs_type: coordinates or image
+        """
+        super(GoalConditionedMiniworldWrapper, self).__init__(env)
+        self.img_obs = img_obs
+        if self.img_obs:
+            self.observation_space = gym.spaces.Dict({
+                'observation': env.observation_space,
+                'goal': env.observation_space,
+            })
+        else:
+            obs_space = spaces.Box(
+                low=-10.,
+                high=10.,
+                shape=(3,),
+                dtype=np.float32
+            )
+            self.observation_space = gym.spaces.Dict({
+                'observation': obs_space,
+                'goal': obs_space,
+            })
+
+    def reset(self):
+        img = self.env.reset()
+        obs = self.env.agent.pos
+        # Note: only work if you use a box to specify the goal
+        # check out FourRooms env in miniworld
+        goal = self.env.box.pos
+        self._goal = goal
+        return {'observation': obs,
+                'goal': self._goal}
+
+    def step(self, action):
+        img, _, done, info = self.env.step(action)
+        obs = self.env.agent.pos
+        rew = -1.0
+        info['image'] = img
+        return {'observation': obs,
+                'goal': self._goal}, rew, done, info
