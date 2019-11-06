@@ -1540,22 +1540,34 @@ class GoalConditionedCoordinateMiniworldWrapper(gym.Wrapper):
 
     def reset(self):
         img = self.env.reset()
-        obs = self.env.agent.pos
+        obs = self._get_obs_pos_dir()
         # Note: only work if you use a box to specify the goal
         # check out FourRooms env in miniworld
-        goal = self.env.box.pos
-        self._goal = goal
+        self._goal = self._set_goal_pos_dir()
         return {'observation': obs,
                 'goal': self._goal}
 
     def step(self, action):
         img, _, done, info = self.env.step(action)
-        obs = self.env.agent.pos
+        obs = self._get_obs_pos_dir()
         rew = -1.0
         info['image'] = img
         info['dir'] = self.env.agent.dir
+        info['agent_pos'] = self.env.agent.pos
+        info['goal_pos'] = self.env.box.pos
         return {'observation': obs,
                 'goal': self._goal}, rew, done, info
+
+    def _get_obs_pos_dir(self):
+        obs = self.env.agent.pos
+        obs = np.append(obs, self.env.agent.dir)
+        return obs
+
+    def _set_goal_pos_dir(self):
+        goal = self.env.box.pos
+        goal_dir = np.random.uniform(-np.pi, np.pi)
+        goal = np.append(goal, goal_dir)
+        return goal
 
 
 class GoalConditionedImageMiniworldWrapper(gym.Wrapper):
