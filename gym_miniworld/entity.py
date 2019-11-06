@@ -98,6 +98,24 @@ class Entity:
         """
         return False
 
+    def right_vec_for_dir(self, d):
+        """
+        Vector pointing to the right of the agent
+        """
+
+        x = math.sin(d)
+        z = math.cos(d)
+        return np.array([x, 0, z])
+
+    def dir_vec_for_dir(self, d):
+        """
+        Vector pointing in the direction of forward movement
+        """
+
+        x = math.cos(d)
+        z = -math.sin(d)
+        return np.array([x, 0, z])
+
 
 class MeshEnt(Entity):
     """
@@ -528,6 +546,66 @@ class Agent(Entity):
         glVertex3f(*p1)
         glEnd()
 
+        """
+        glBegin(GL_LINE_STRIP)
+        for i in range(20):
+            a = (2 * math.pi * i) / 20
+            pc = p + dv * math.cos(a) + rv * math.sin(a)
+            glVertex3f(*pc)
+        glEnd()
+        """
+
+    def render_graph(self, positions, directions, dists):
+        """
+        Draw nodes + edges
+        """
+
+        # Note: this is currently only used in the top view
+        # Eventually, we will want a proper 3D model
+
+        for i, (pos, dir) in enumerate(zip(positions, directions)):
+
+            dir_vec = self.dir_vec_for_dir(dir)
+            right_vec = self.right_vec_for_dir(dir)
+
+            p = pos + Y_VEC * self.height
+
+            dv = dir_vec * self.radius
+
+            rv = right_vec * self.radius
+
+            p0 = p + dv
+            p1 = p + 0.75 * (rv - dv)
+            p2 = p + 0.75 * (-rv - dv)
+
+            # draw edges
+            if dists is not None:
+                for j in range(len(positions)):
+                    if dists[i, j] < 2. and i != j:
+                        dir_vec = self.dir_vec_for_dir(directions[j])
+                        right_vec = self.right_vec_for_dir(directions[j])
+
+                        pj = positions[j]
+                        glColor3f(1, 0, 0)
+                        glBegin(GL_LINES)
+                        glVertex3f(*p0)
+                        glVertex3f(*pj)
+                        glEnd()
+
+            glColor3f(1, 0, 0)
+            glBegin(GL_TRIANGLES)
+            glVertex3f(*p0)
+            glVertex3f(*p2)
+            glVertex3f(*p1)
+            glEnd()
+
+        """
+        glColor3f(1, 0, 0)
+        glBegin(GL_LINES)
+        glVertex3f(*p0)
+        glVertex3f(*pp0)
+        glEnd()
+        """
         """
         glBegin(GL_LINE_STRIP)
         for i in range(20):

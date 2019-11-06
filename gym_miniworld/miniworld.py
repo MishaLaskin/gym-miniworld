@@ -1096,7 +1096,8 @@ class MiniWorldEnv(gym.Env):
     def _render_world(
         self,
         frame_buffer,
-        render_agent
+        render_agent,
+        graph_args=None
     ):
         """
         Render the world from a given camera position into a frame buffer,
@@ -1114,14 +1115,17 @@ class MiniWorldEnv(gym.Env):
                 # ent.draw_bound()
 
         if render_agent:
-            self.agent.render()
+            if graph_args is not None:
+                self.agent.render_graph(**graph_args)
+            else:
+                self.agent.render()
 
         # Resolve the rendered image into a numpy array
         img = frame_buffer.resolve()
 
         return img
 
-    def render_top_view(self, frame_buffer=None):
+    def render_top_view(self, frame_buffer=None, graph_args=None):
         """
         Render a top view of the whole map (from above)
         """
@@ -1191,7 +1195,8 @@ class MiniWorldEnv(gym.Env):
 
         return self._render_world(
             frame_buffer,
-            render_agent=True
+            render_agent=True,
+            graph_args=graph_args
         )
 
     def render_obs(self, frame_buffer=None):
@@ -1548,6 +1553,7 @@ class GoalConditionedCoordinateMiniworldWrapper(gym.Wrapper):
         obs = self.env.agent.pos
         rew = -1.0
         info['image'] = img
+        info['dir'] = self.env.agent.dir
         return {'observation': obs,
                 'goal': self._goal}, rew, done, info
 
@@ -1587,6 +1593,7 @@ class GoalConditionedImageMiniworldWrapper(gym.Wrapper):
         rew = -1.0
         info['agent_pos'] = self.env.agent.pos
         info['goal_pos'] = self.env.box.pos
+        info['dir'] = self.env.agent.dir
         return {'observation': obs,
                 'goal': self._goal}, rew, done, info
 
