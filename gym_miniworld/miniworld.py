@@ -1527,10 +1527,11 @@ class GoalConditionedCoordinateMiniworldWrapper(gym.Wrapper):
         """
         super(GoalConditionedCoordinateMiniworldWrapper, self).__init__(env)
 
+        # the fourth dimension of the observation space is [-1, 1] which
+        # corresponds to heading angles [-pi, pi] in radians
         obs_space = spaces.Box(
-            low=-10.,
-            high=10.,
-            shape=(3,),
+            low=np.array([-10.,-10.,-10.,-1.]),
+            high=np.array([10.,10.,10.,1.]),
             dtype=np.float32
         )
         self.observation_space = gym.spaces.Dict({
@@ -1560,7 +1561,13 @@ class GoalConditionedCoordinateMiniworldWrapper(gym.Wrapper):
 
     def _get_obs_pos_dir(self):
         obs = self.env.agent.pos
-        obs = np.append(obs, self.env.agent.dir)
+        heading = self.env.agent.dir # in radians and unbounded, e.g., magnitude can exceed 2pi
+        # normalize to be within [-1, 1] to fit with gym spaces.Box interface
+        heading = heading / np.pi
+        heading = heading % 2
+        if heading > 1:
+            heading -= 2
+        obs = np.append(obs, heading)
         return obs
 
     def _set_goal_pos_dir(self):
