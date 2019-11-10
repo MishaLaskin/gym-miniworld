@@ -1572,7 +1572,8 @@ class GoalConditionedCoordinateMiniworldWrapper(gym.Wrapper):
 
     def _set_goal_pos_dir(self):
         goal = self.env.box.pos
-        goal_dir = np.random.uniform(-np.pi, np.pi)
+        # corresponds to heading angles [-pi, pi] in radians
+        goal_dir = np.random.uniform(-1, 1)
         goal = np.append(goal, goal_dir)
         return goal
 
