@@ -50,7 +50,11 @@ for env_id in gym_miniworld.envs.env_ids:
         continue
 
     print('Testing "' + env_id + '"')
-    env = gym.make(env_id)
+    try:
+        env = gym.make(env_id)
+    except NotImplementedError:
+        print('WARN: Environment "' + env_id + '" not implemented, skipping')
+        continue
     env.domain_rand = True
     # Try multiple random restarts
     for _ in range(15):
@@ -58,7 +62,7 @@ for env_id in gym_miniworld.envs.env_ids:
         assert not env.intersect(env.agent, env.agent.pos, env.agent.radius)
         # Perform multiple random actions
         for _ in range(0, 20):
-            action = env.rand.int(0, env.action_space.n)
+            action = env.action_space.sample()
             obs, reward, done, info = env.step(action)
             if done:
                 env.reset()
