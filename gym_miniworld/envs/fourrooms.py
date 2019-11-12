@@ -87,7 +87,7 @@ class ContinuousFourRooms(ContinuousMiniworldEnv):
         # Allow only the movement actions
         self.action_space = spaces.Box(shape=(1,), low=-1, high=1)
 
-    def _gen_world(self):
+    def _gen_world(self, prob_constraint, min_goal_dist, max_goal_dist):
         # Top-left room
         room0 = self.add_rect_room(
             min_x=-7, max_x=-1,
@@ -125,9 +125,13 @@ class ContinuousFourRooms(ContinuousMiniworldEnv):
         self.connect_rooms(room2, room3, min_z=-5, max_z=-3, max_y=2.2)
         self.connect_rooms(room3, room0, min_x=-5, max_x=-3, max_y=2.2)
 
-        self.box = self.place_entity(Box(color='red', invisible=True))
-
         self.place_agent()
+
+        # With probability prob_constraint, set box within goal difficulty constraints, i.e., nearby the agent
+        if np.random.random() < prob_constraint:
+            self.box = self.place_entity_nearby(Box(color='red', invisible=True), self.agent.pos, min_goal_dist, max_goal_dist, share_room=True)
+        else:
+            self.box = self.place_entity(Box(color='red', invisible=True))
 
     def step(self, action):
         obs, reward, done, info = super().step(action)

@@ -1484,6 +1484,69 @@ class ContinuousMiniworldEnv(MiniWorldEnv):
             params,
             domain_rand)
 
+    def reset(self, prob_constraint=0.8, min_goal_dist=0, max_goal_dist=8):
+        """
+        Reset the simulation at the start of a new episode
+        This also randomizes many environment parameters (domain randomization)
+        """
+
+        # Step count since episode start
+        self.step_count = 0
+
+        # Create the agent
+        self.agent = Agent()
+
+        # List of entities contained
+        self.entities = []
+
+        # List of rooms in the world
+        self.rooms = []
+
+        # Wall segments for collision detection
+        # Shape is (N, 2, 3)
+        self.wall_segs = []
+
+        # Generate the world
+        self._gen_world(prob_constraint, min_goal_dist, max_goal_dist)
+
+        # Check if domain randomization is enabled or not
+        rand = self.rand if self.domain_rand else None
+
+        # Randomize elements of the world (domain randomization)
+        self.params.sample_many(rand, self, [
+            'sky_color',
+            'light_pos',
+            'light_color',
+            'light_ambient'
+        ])
+
+        # Get the max forward step distance
+        self.max_forward_step = self.params.get_max('forward_step')
+
+        # Randomize parameters of the entities
+        for ent in self.entities:
+            ent.randomize(self.params, rand)
+
+        # Compute the min and max x, z extents of the whole floorplan
+        self.min_x = min([r.min_x for r in self.rooms])
+        self.max_x = max([r.max_x for r in self.rooms])
+        self.min_z = min([r.min_z for r in self.rooms])
+        self.max_z = max([r.max_z for r in self.rooms])
+
+        # Generate static data
+        if len(self.wall_segs) == 0:
+            self._gen_static_data()
+
+        # Pre-compile static parts of the environment into a display list
+        self._render_static()
+
+        # Generate the first camera image
+        obs = self.render_obs()
+
+        # Return first observation
+        return obs
+
+
     def step(self, action):
         """
         Perform one action and update the simulation
@@ -1515,16 +1578,94 @@ class ContinuousMiniworldEnv(MiniWorldEnv):
 
         return obs, reward, done, {}
 
+    def place_entity_nearby(
+        self,
+        ent,
+        ref_pos,
+        min_dist,
+        max_dist,
+        share_room=True,
+        share_attempts=1000
+    ):
+        """
+        Place an entity/object in the world with distance from ref_pos bounded
+        by min_dist and max_dist.
+        Finds a position that doesn't intersect with any other object.
+        """
+
+        assert len(self.rooms) > 0, "create rooms before calling place_entity_nearby"
+        assert ent.radius != None, "entity must have physical size defined"
+        assert min_dist >= 0
+        assert max_dist >= 0
+        assert max_dist - min_dist > 2*ent.radius, "entity too wide to meet distance constraints"
+
+        # Generate collision detection data
+        if len(self.wall_segs) == 0:
+            self._gen_static_data()
+
+        # Identify room of ref_pos
+        if share_room:
+            ref_room = None
+            for r in self.rooms:
+                if r.point_inside(ref_pos):
+                    ref_room = r
+                    break
+            if ref_room is None:
+                assert False, "could not identify room of ref_pos"
+
+        # Keep retrying until we find a suitable position
+        share_fails = 0
+        while True:
+            # Find a random offset from ref_pos within the constraints
+            min_radius = min_dist + ent.radius
+            max_radius = max_dist - ent.radius
+            radius = self.rand.float(min_radius, max_radius)
+            theta = self.rand.float(-np.pi, np.pi)
+            offset = np.array([radius * np.cos(theta), 0, radius * np.sin(theta)])
+
+            # Calculate object's pos by displacement from ref_pos
+            pos = ref_pos + offset
+
+            # Make sure the position is within the outline of a room
+            if not np.any([r.point_inside(pos) for r in self.rooms]):
+                continue
+
+            # Make sure the position doesn't intersect with any walls
+            if self.intersect(ent, pos, ent.radius):
+                continue
+
+            # Make sure the new position shares a room with ref_pos
+            if share_room and share_fails < share_attempts and not ref_room.point_inside(pos):
+                share_fails += 1
+                continue
+
+
+            # Pick a direction
+            d = dir if dir != None else self.rand.float(-math.pi, math.pi)
+
+            ent.pos = pos
+            ent.dir = d
+
+            self.entities.append(ent)
+            return ent
 
 class GoalConditionedCoordinateMiniworldWrapper(gym.Wrapper):
     """Wrapper that appends goal to state produced by environment."""
 
-    def __init__(self, env):
+    def __init__(self, env, prob_constraint=0.8, min_dist=1, max_dist=5):
         """Initialize the environment.
 
         Args:
           env: an environment.
+          prob_constraint: (float) Probability that the distance constraint is
+            enforced after resetting.
+          min_dist: (float) When constraint is enforced, the goal is at
+            least this far from the initial state.
+          max_dist: (float) When constraint is enforced, the goal is at
+            most this far from the initial state.
         """
+        self.set_sample_goal_args(prob_constraint=prob_constraint,
+                                  min_dist=min_dist, max_dist=max_dist)
         super(GoalConditionedCoordinateMiniworldWrapper, self).__init__(env)
 
         # the fourth dimension of the observation space is [-1, 1] which
@@ -1540,11 +1681,9 @@ class GoalConditionedCoordinateMiniworldWrapper(gym.Wrapper):
         })
 
     def reset(self):
-        img = self.env.reset()
+        img = self.env.reset(prob_constraint=self._prob_constraint, min_goal_dist=self._min_dist, max_goal_dist=self._max_dist)
         obs = self._get_obs_pos_dir()
-        # Note: only work if you use a box to specify the goal
-        # check out FourRooms env in miniworld
-        self._goal = self._set_goal_pos_dir()
+        self._set_goal_pos_dir()
         return {'observation': obs,
                 'goal': self._goal}
 
@@ -1558,6 +1697,16 @@ class GoalConditionedCoordinateMiniworldWrapper(gym.Wrapper):
         info['goal_pos'] = self.env.box.pos
         return {'observation': obs,
                 'goal': self._goal}, rew, done, info
+
+    def set_sample_goal_args(self, prob_constraint=None, min_dist=None, max_dist=None):
+        assert prob_constraint is not None
+        assert min_dist is not None
+        assert max_dist is not None
+        assert min_dist >= 0
+        assert max_dist >= min_dist
+        self._prob_constraint = prob_constraint
+        self._min_dist = min_dist
+        self._max_dist = max_dist
 
     def _get_obs_pos_dir(self):
         obs = self.env.agent.pos
@@ -1574,20 +1723,27 @@ class GoalConditionedCoordinateMiniworldWrapper(gym.Wrapper):
         goal = self.env.box.pos
         # corresponds to heading angles [-pi, pi] in radians
         goal_dir = np.random.uniform(-1, 1)
-        goal = np.append(goal, goal_dir)
+        self._goal = np.append(goal, goal_dir)
         return goal
 
 
 class GoalConditionedImageMiniworldWrapper(gym.Wrapper):
     """Wrapper that appends goal to state produced by environment."""
 
-    def __init__(self, env):
+    def __init__(self, env, prob_constraint=0.8, min_dist=1, max_dist=5):
         """Initialize the environment.
 
         Args:
           env: an environment.
-          obs_type: coordinates or image
+          prob_constraint: (float) Probability that the distance constraint is
+            enforced after resetting.
+          min_dist: (float) When constraint is enforced, the goal is at
+            least this far from the initial state.
+          max_dist: (float) When constraint is enforced, the goal is at
+            most this far from the initial state.
         """
+        self.set_sample_goal_args(prob_constraint=prob_constraint,
+                                  min_dist=min_dist, max_dist=max_dist)
         super(GoalConditionedImageMiniworldWrapper, self).__init__(env)
 
         self.observation_space = gym.spaces.Dict({
@@ -1596,14 +1752,8 @@ class GoalConditionedImageMiniworldWrapper(gym.Wrapper):
         })
 
     def reset(self):
-        goal = self.env.reset()
-        goal_pos = self.env.agent.pos
-
-        obs = self.env.reset()
-        self.env.box.pos = goal_pos
-        # Note: only work if you use a box to specify the goal
-        # check out FourRooms env in miniworld
-        self._goal = goal
+        obs = self.env.reset(prob_constraint=self._prob_constraint, min_goal_dist=self._min_dist, max_goal_dist=self._max_dist)
+        self._set_image_goal()
 
         return {'observation': obs,
                 'goal': self._goal}
@@ -1617,7 +1767,17 @@ class GoalConditionedImageMiniworldWrapper(gym.Wrapper):
         return {'observation': obs,
                 'goal': self._goal}, rew, done, info
 
-    def set_image_goal(self):
+    def set_sample_goal_args(self, prob_constraint=None, min_dist=None, max_dist=None):
+        assert prob_constraint is not None
+        assert min_dist is not None
+        assert max_dist is not None
+        assert min_dist >= 0
+        assert max_dist >= min_dist
+        self._prob_constraint = prob_constraint
+        self._min_dist = min_dist
+        self._max_dist = max_dist
+
+    def _set_image_goal(self):
         """
         currently not actually used, but useful 
         utility if you want to set custom goals
@@ -1625,12 +1785,14 @@ class GoalConditionedImageMiniworldWrapper(gym.Wrapper):
         original_agent_pos = self.env.agent.pos
         original_angle = self.env.agent.dir
         # move agent to goal
-        self.agent.pos = self.env.box.pos
+        self.env.agent.pos = self.env.box.pos
         # turn agent randomly
         angle = np.random.randint(-180, 180)
         angle *= (math.pi / 180)
-        self.agent.dir = angle
-        goal_img = self.render_obs()
+        self.env.agent.dir = angle
+        # set observation as goal
+        self._goal = self.env.render_obs()
         # reset agent back
         self.env.agent.pos = original_agent_pos
-        self.agent.dir = original_angle
+        self.env.agent.dir = original_angle
+        return self._goal
