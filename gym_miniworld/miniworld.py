@@ -1473,7 +1473,7 @@ class ContinuousMiniworldEnv(MiniWorldEnv):
             obs_height=84,
             window_width=800,
             window_height=600,
-            params=DEFAULT_PARAMS,
+            params=CONTINUOUS_DEFAULT_PARAMS,
             domain_rand=False):
         super().__init__(
             max_episode_steps,

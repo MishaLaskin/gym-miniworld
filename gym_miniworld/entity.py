@@ -555,13 +555,38 @@ class Agent(Entity):
         glEnd()
         """
 
-    def render_graph(self, positions, directions, dists):
+    def render_graph(self, positions, directions, dists,goal_pos=None):
         """
         Draw nodes + edges
         """
 
         # Note: this is currently only used in the top view
         # Eventually, we will want a proper 3D model
+        if goal_pos is not None:
+            dir_vec = self.dir_vec_for_dir(0.)
+            right_vec = self.right_vec_for_dir(0.)
+
+            p = goal_pos + Y_VEC * self.height
+
+            dv = dir_vec * self.radius
+
+            rv = right_vec * self.radius
+
+            p0 = p + dv
+            p1 = p + 0.75 * (rv - dv)
+            p2 = p + 0.75 * (-rv - dv)
+
+            
+            glBegin(GL_TRIANGLES)
+            glColor3f(0,1,1)
+            glVertex3f(*p0)
+            glColor3f(0,1,1)
+            glVertex3f(*p2)
+            glColor3f(0,1,1)
+            glVertex3f(*p1)
+            glColor3f(0,1,1)
+            glEnd()
+
 
         for i, (pos, dir) in enumerate(zip(positions, directions)):
 
